@@ -5,6 +5,8 @@ const { errorMiddleware } = require("./middleware/error.middleware");
 const authRoutes = require("./modules/auth/auth.routes");
 const categoryRoutes = require("./modules/categories/category.routes");
 const productRoutes = require("./modules/products/product.routes");
+const productRoutes = require("./modules/products/product.routes");
+app.use("/api/products", productRoutes);
 
 const app = express();
 
