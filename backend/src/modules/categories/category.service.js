@@ -1,43 +1,44 @@
 const repo = require("./category.repository");
 
-function listCategories() {
+async function listCategories() {
   return repo.findAll();
 }
 
-function getCategoryById(id) {
-  const category = repo.findById(id);
-  if (!category) {
+async function getCategoryById(id) {
+  const cat = await repo.findById(id);
+  if (!cat) {
     const err = new Error("Category not found");
     err.status = 404;
     throw err;
   }
-  return category;
+  return cat;
 }
 
-function createCategory({ name, description, imageUrl, isActive }) {
-  if (!name || !name.trim()) {
+async function createCategory({ name }) {
+  if (!name || !String(name).trim()) {
     const err = new Error("name is required");
     err.status = 400;
     throw err;
   }
 
-  const exists = repo.findByName(name.trim());
-  if (exists) {
+  const existing = await repo.findByName(name.trim());
+  if (existing) {
     const err = new Error("Category name already exists");
     err.status = 409;
     throw err;
   }
 
-  return repo.create({
-    name: name.trim(),
-    description: description || "",
-    imageUrl: imageUrl || "",
-    isActive: isActive ?? true,
-  });
+  return repo.create({ name: name.trim() });
 }
 
-function updateCategory(id, patch) {
-  const updated = repo.update(id, patch);
+async function updateCategory(id, patch) {
+  if (patch.name !== undefined && !String(patch.name).trim()) {
+    const err = new Error("name cannot be empty");
+    err.status = 400;
+    throw err;
+  }
+
+  const updated = await repo.update(id, { name: patch.name?.trim() });
   if (!updated) {
     const err = new Error("Category not found");
     err.status = 404;
@@ -46,8 +47,8 @@ function updateCategory(id, patch) {
   return updated;
 }
 
-function deleteCategory(id) {
-  const ok = repo.remove(id);
+async function deleteCategory(id) {
+  const ok = await repo.remove(id);
   if (!ok) {
     const err = new Error("Category not found");
     err.status = 404;

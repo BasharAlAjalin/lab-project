@@ -1,66 +1,44 @@
+const { query } = require("../../config/db");
 const { randomUUID } = require("crypto");
 
-const categories = [];
-
-function findAll() {
-  return categories;
+async function findAll() {
+  return query("SELECT * FROM categories ORDER BY created_at DESC");
 }
 
-function findById(id) {
-  return categories.find((c) => c.id === id) || null;
+async function findById(id) {
+  const rows = await query("SELECT * FROM categories WHERE id = ? LIMIT 1", [
+    id,
+  ]);
+  return rows[0] || null;
 }
 
-function findByName(name) {
-  return (
-    categories.find((c) => c.name.toLowerCase() === name.toLowerCase()) || null
+async function findByName(name) {
+  const rows = await query(
+    "SELECT * FROM categories WHERE LOWER(name) = LOWER(?) LIMIT 1",
+    [name]
   );
+  return rows[0] || null;
 }
 
-function create({ name, description = "", imageUrl = "", isActive = true }) {
-  const now = new Date().toISOString();
-  const category = {
-    id: randomUUID(),
-    name,
-    description,
-    imageUrl,
-    isActive,
-    createdAt: now,
-    updatedAt: now,
-  };
-  categories.push(category);
-  return category;
+async function create({ name }) {
+  const id = randomUUID();
+  await query("INSERT INTO categories (id, name) VALUES (?, ?)", [id, name]);
+  return findById(id);
 }
 
-function update(id, patch) {
-  const category = findById(id);
-  if (!category) return null;
+async function update(id, patch) {
+  const existing = await findById(id);
+  if (!existing) return null;
 
-  if (patch.name !== undefined) category.name = patch.name;
-  if (patch.description !== undefined) category.description = patch.description;
-  if (patch.imageUrl !== undefined) category.imageUrl = patch.imageUrl;
-  if (patch.isActive !== undefined) category.isActive = patch.isActive;
+  const nextName = patch.name ?? existing.name;
 
-  category.updatedAt = new Date().toISOString();
-  return category;
+  await query("UPDATE categories SET name = ? WHERE id = ?", [nextName, id]);
+  return findById(id);
 }
 
-function remove(id) {
-  const idx = categories.findIndex((c) => c.id === id);
-  if (idx === -1) return false;
-  categories.splice(idx, 1);
-  return true;
+async function remove(id) {
+  const res = await query("DELETE FROM categories WHERE id = ?", [id]);
+  return res.affectedRows > 0;
 }
 
-function _resetForTests() {
-  categories.length = 0;
-}
-
-module.exports = {
-  findAll,
-  findById,
-  findByName,
-  create,
-  update,
-  remove,
-  _resetForTests,
-};
+module.exports = { findAll, findById, findByName, create, update, remove };

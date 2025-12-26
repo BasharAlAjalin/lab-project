@@ -1,11 +1,4 @@
-// src/Context/AuthContext.jsx
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 import {
   clearAuthStorage,
   getToken,
@@ -17,14 +10,8 @@ import {
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [token, setTokenState] = useState(() => getToken());
-  const [user, setUserState] = useState(() => getUser());
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // simulate hydration loading (useful if later you validate token with backend)
-    setLoading(false);
-  }, []);
+  const [tokenState, setTokenState] = useState(() => getToken());
+  const [userState, setUserState] = useState(() => getUser());
 
   const login = ({ token, user }) => {
     setToken(token);
@@ -39,24 +26,26 @@ export function AuthProvider({ children }) {
     setUserState(null);
   };
 
-  const isAuthenticated = !!token;
-  const isAdmin = user?.role === "admin";
+  const updateUser = (partial) => {
+    const next = { ...(userState || {}), ...(partial || {}) };
+    setUser(next);
+    setUserState(next);
+  };
+
+  const isAuthenticated = !!tokenState;
+  const isAdmin = userState?.role === "ADMIN";
 
   const value = useMemo(
     () => ({
-      token,
-      user,
-      loading,
+      token: tokenState,
+      user: userState,
       isAuthenticated,
       isAdmin,
       login,
       logout,
-      setUser: (u) => {
-        setUser(u);
-        setUserState(u);
-      },
+      updateUser,
     }),
-    [token, user, loading, isAuthenticated, isAdmin]
+    [tokenState, userState, isAuthenticated, isAdmin]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

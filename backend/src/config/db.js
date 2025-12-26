@@ -23,9 +23,14 @@ function getPool(overrides = {}) {
 async function testConnection() {
   const p = getPool();
   const conn = await p.getConnection();
-  await conn.ping();
-  conn.release();
-  console.log("✅ MySQL connected");
+  try {
+    await conn.ping();
+    console.log(
+      `✅ MySQL connected: ${env.MYSQL_HOST}:${env.MYSQL_PORT}/${env.MYSQL_DATABASE} (user=${env.MYSQL_USER})`
+    );
+  } finally {
+    conn.release();
+  }
 }
 
 async function closePool() {
@@ -36,7 +41,6 @@ async function closePool() {
   }
 }
 
-/** Simple query helper */
 async function query(sql, params = []) {
   const [rows] = await getPool().execute(sql, params);
   return rows;

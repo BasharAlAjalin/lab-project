@@ -1,13 +1,13 @@
 const productRepo = require("./product.repository");
 const categoryRepo = require("../categories/category.repository");
 
-function _ensureCategoryExists(categoryId) {
+async function _ensureCategoryExists(categoryId) {
   if (!categoryId) {
     const err = new Error("categoryId is required");
     err.status = 400;
     throw err;
   }
-  const cat = categoryRepo.findById(categoryId);
+  const cat = await categoryRepo.findById(categoryId);
   if (!cat) {
     const err = new Error("Category not found");
     err.status = 404;
@@ -16,27 +16,12 @@ function _ensureCategoryExists(categoryId) {
   return cat;
 }
 
-function listProducts({ search, categoryId }) {
-  let items = productRepo.findAll();
-
-  if (categoryId) {
-    items = items.filter((p) => p.categoryId === categoryId);
-  }
-
-  if (search && search.trim()) {
-    const q = search.trim().toLowerCase();
-    items = items.filter(
-      (p) =>
-        (p.name || "").toLowerCase().includes(q) ||
-        (p.description || "").toLowerCase().includes(q)
-    );
-  }
-
-  return items;
+async function listProducts({ search, categoryId }) {
+  return productRepo.findAll({ search, categoryId });
 }
 
-function getProductById(id) {
-  const p = productRepo.findById(id);
+async function getProductById(id) {
+  const p = await productRepo.findById(id);
   if (!p) {
     const err = new Error("Product not found");
     err.status = 404;
@@ -45,18 +30,11 @@ function getProductById(id) {
   return p;
 }
 
-function createProduct(payload) {
-  const {
-    categoryId,
-    name,
-    description,
-    price,
-    stockQuantity,
-    imageUrl,
-    isActive,
-  } = payload;
+async function createProduct(payload) {
+  const { categoryId, name, description, price, stockQuantity, imageUrl } =
+    payload;
 
-  _ensureCategoryExists(categoryId);
+  await _ensureCategoryExists(categoryId);
 
   if (!name || !name.trim()) {
     const err = new Error("name is required");
@@ -85,14 +63,12 @@ function createProduct(payload) {
     price: numPrice,
     stockQuantity: stock,
     imageUrl: imageUrl || "",
-    isActive: isActive ?? true,
   });
 }
 
-function updateProduct(id, patch) {
-  if (patch.categoryId !== undefined) {
-    _ensureCategoryExists(patch.categoryId);
-  }
+async function updateProduct(id, patch) {
+  if (patch.categoryId !== undefined)
+    await _ensureCategoryExists(patch.categoryId);
 
   if (patch.name !== undefined && !String(patch.name).trim()) {
     const err = new Error("name cannot be empty");
@@ -122,7 +98,7 @@ function updateProduct(id, patch) {
     patch.stockQuantity = stock;
   }
 
-  const updated = productRepo.update(id, patch);
+  const updated = await productRepo.update(id, patch);
   if (!updated) {
     const err = new Error("Product not found");
     err.status = 404;
@@ -131,8 +107,8 @@ function updateProduct(id, patch) {
   return updated;
 }
 
-function deleteProduct(id) {
-  const ok = productRepo.remove(id);
+async function deleteProduct(id) {
+  const ok = await productRepo.remove(id);
   if (!ok) {
     const err = new Error("Product not found");
     err.status = 404;

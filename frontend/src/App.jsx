@@ -1,122 +1,73 @@
-import React from "react";
-import { Route, Routes } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
+import Navbar from "./components/common/Navbar";
 
-import Navbar from "./Common/Navbar";
-import Footer from "./Common/Footer";
+import Home from "./pages/Home";
 
-import ProtectedRoutes from "./Routes/ProtectedRoutes";
-import AdminRoute from "./routes/AdminRoute";
-
+import Products from "./pages/customer/Products";
 import ProductDetails from "./pages/customer/ProductDetails";
+
+import Login from "./pages/auth/Login";
+import Register from "./pages/auth/Register";
+import Verify from "./pages/auth/Verify";
+
+import Profile from "./pages/Profile";
+
+import AdminLayout from "./pages/admin/AdminLayout";
 import Dashboard from "./pages/admin/Dashboard";
-
-function Home() {
-  return (
-    <div className="container page">
-      <h1>Home</h1>
-      <p className="muted">
-        Frontend is wired with Auth + Protected/Admin routes.
-      </p>
-    </div>
-  );
-}
-
-function LoginMock() {
-  // This is just a mock login page to test route guards quickly
-  // Replace with your real login (API call) page later
-  const { login } = require("./context/AuthContext"); // avoid circular import? we'll do normal import instead
-  return <div />;
-}
+import Categories from "./pages/admin/Categories";
+import AdminProducts from "./pages/admin/Products";
+import AdminUsers from "./pages/admin/Users";
 
 import { useAuth } from "./context/AuthContext";
-import { useLocation, useNavigate } from "react-router-dom";
 
-function LoginPage() {
-  const { login } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const from = location.state?.from?.pathname || "/";
-
-  const loginAsUser = () => {
-    login({
-      token: "demo-token",
-      user: { id: 1, name: "Customer", role: "customer" },
-    });
-    navigate(from, { replace: true });
-  };
-
-  const loginAsAdmin = () => {
-    login({
-      token: "demo-token",
-      user: { id: 2, name: "Admin", role: "admin" },
-    });
-    navigate("/admin/dashboard", { replace: true });
-  };
-
-  return (
-    <div className="container page">
-      <h1>Login</h1>
-      <p className="muted">Mock login buttons (replace with real API later).</p>
-
-      <div className="row">
-        <button className="btn" onClick={loginAsUser}>
-          Login as Customer
-        </button>
-        <button className="btn" onClick={loginAsAdmin}>
-          Login as Admin
-        </button>
-      </div>
-    </div>
-  );
+function RequireAuth() {
+  const { user } = useAuth();
+  return user ? <Outlet /> : <Navigate to="/login" replace />;
 }
 
-function Profile() {
+function RequireAdmin() {
   const { user } = useAuth();
-  return (
-    <div className="container page">
-      <h1>Profile</h1>
-      <div className="card">
-        <pre style={{ margin: 0 }}>{JSON.stringify(user, null, 2)}</pre>
-      </div>
-    </div>
-  );
+  if (!user) return <Navigate to="/login" replace />;
+  return user.role === "ADMIN" ? <Outlet /> : <Navigate to="/" replace />;
 }
 
 export default function App() {
   return (
-    <div className="app-shell">
+    <div className="min-h-screen bg-[radial-gradient(1200px_700px_at_20%_20%,rgba(0,87,184,0.25),transparent),radial-gradient(1200px_700px_at_80%_30%,rgba(165,0,68,0.28),transparent),radial-gradient(900px_500px_at_60%_90%,rgba(255,199,44,0.14),transparent)] bg-[#050814] text-slate-100">
       <Navbar />
 
       <Routes>
-        {/* Public */}
         <Route path="/" element={<Home />} />
-        <Route path="/login" element={<LoginPage />} />
+
+        {/* CUSTOMER */}
+        <Route path="/products" element={<Products />} />
         <Route path="/products/:id" element={<ProductDetails />} />
 
-        {/* Protected (any logged-in user) */}
-        <Route element={<ProtectedRoutes />}>
+        {/* AUTH */}
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/verify" element={<Verify />} />
+
+        {/* PROFILE */}
+        <Route element={<RequireAuth />}>
           <Route path="/profile" element={<Profile />} />
         </Route>
 
-        {/* Admin only */}
-        <Route element={<AdminRoute />}>
-          <Route path="/admin/dashboard" element={<Dashboard />} />
-          {/* Add more admin pages later */}
+        {/* ADMIN */}
+        <Route element={<RequireAdmin />}>
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="categories" element={<Categories />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="users" element={<AdminUsers />} />
+          </Route>
         </Route>
 
-        {/* 404 */}
         <Route
           path="*"
-          element={
-            <div className="container page">
-              <h1>404</h1>
-              <p className="muted">Page not found.</p>
-            </div>
-          }
+          element={<div className="container mx-auto px-6 py-16">404</div>}
         />
       </Routes>
-
-      <Footer />
     </div>
   );
 }

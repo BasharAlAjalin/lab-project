@@ -1,4 +1,3 @@
-// backend/middleware/errorMiddleware.js
 function notFound(req, res, next) {
   const error = new Error(`Not Found - ${req.originalUrl}`);
   error.statusCode = 404;
@@ -10,8 +9,6 @@ function errorHandler(err, req, res, next) {
 
   const statusCode = err.statusCode || err.status || 500;
 
-  // MySQL common errors → nicer messages
-  // ER_DUP_ENTRY (duplicate unique)
   if (err.code === "ER_DUP_ENTRY") {
     return res.status(409).json({
       success: false,
@@ -20,7 +17,6 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  // ER_NO_REFERENCED_ROW_2 (foreign key fail)
   if (err.code === "ER_NO_REFERENCED_ROW_2") {
     return res.status(400).json({
       success: false,
