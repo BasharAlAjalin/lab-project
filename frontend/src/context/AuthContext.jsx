@@ -1,51 +1,35 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
-import {
-  clearAuthStorage,
-  getToken,
-  getUser,
-  setToken,
-  setUser,
-} from "../Utils/token";
+import { createContext, useContext, useMemo, useState } from "react";
+import { loginApi } from "../api/auth.api";
+import { clearAuth, getToken, getUser, setAuth } from "../Utils/token";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [tokenState, setTokenState] = useState(() => getToken());
-  const [userState, setUserState] = useState(() => getUser());
+  const [token, setTokenState] = useState(getToken());
+  const [user, setUserState] = useState(getUser());
 
-  const login = ({ token, user }) => {
-    setToken(token);
-    setUser(user);
-    setTokenState(token);
-    setUserState(user);
+  const isAuthed = !!token;
+
+  const login = async ({ email, password }) => {
+    const res = await loginApi({ email, password });
+    const { token: t, user: u } = res.data;
+
+    setAuth({ token: t, user: u });
+    setTokenState(t);
+    setUserState(u);
+
+    return res.data;
   };
 
   const logout = () => {
-    clearAuthStorage();
-    setTokenState(null);
+    clearAuth();
+    setTokenState("");
     setUserState(null);
   };
 
-  const updateUser = (partial) => {
-    const next = { ...(userState || {}), ...(partial || {}) };
-    setUser(next);
-    setUserState(next);
-  };
-
-  const isAuthenticated = !!tokenState;
-  const isAdmin = userState?.role === "ADMIN";
-
   const value = useMemo(
-    () => ({
-      token: tokenState,
-      user: userState,
-      isAuthenticated,
-      isAdmin,
-      login,
-      logout,
-      updateUser,
-    }),
-    [tokenState, userState, isAuthenticated, isAdmin]
+    () => ({ token, user, isAuthed, login, logout }),
+    [token, user, isAuthed]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -53,6 +37,6 @@ export function AuthProvider({ children }) {
 
 export function useAuth() {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  if (!ctx) throw new Error("useAuth must be used inside <AuthProvider>");
   return ctx;
 }
