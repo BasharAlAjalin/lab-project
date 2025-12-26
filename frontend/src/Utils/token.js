@@ -1,29 +1,39 @@
 const TOKEN_KEY = "token";
 const USER_KEY = "user";
+const ROLE_KEY = "role";
 
-export function setToken(token) {
-  localStorage.setItem(TOKEN_KEY, token);
-}
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
-}
-export function removeToken() {
-  localStorage.removeItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) || "";
 }
 
-export function setUser(user) {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+export function getRole() {
+  return localStorage.getItem(ROLE_KEY) || "";
 }
+
 export function getUser() {
   const raw = localStorage.getItem(USER_KEY);
-  if (!raw) return null;
   try {
-    return JSON.parse(raw);
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
-export function clearAuthStorage() {
-  removeToken();
+
+export function setAuth({ token, user }) {
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+
+  if (user) {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+    if (user.role) localStorage.setItem(ROLE_KEY, user.role);
+  }
+}
+
+export function clearAuth() {
+  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
+  localStorage.removeItem(ROLE_KEY);
+}
+
+export function isLoggedIn() {
+  return !!getToken();
 }

@@ -1,16 +1,9 @@
-const env = require("./config/env");
+require("dotenv").config();
 const app = require("./app");
-const { testConnection } = require("./config/db");
 
-async function start() {
-  await testConnection();
+const PORT = process.env.PORT || 5000;
+const HOST = "0.0.0.0"; 
 
-  app.listen(env.PORT, () => {
-    console.log(`✅ API running on http://localhost:${env.PORT}`);
-  });
-}
-
-start().catch((err) => {
-  console.error("❌ Server failed to start:", err.message);
-  process.exit(1);
+app.listen(PORT, HOST, () => {
+  console.log(`✅ API running on http://${HOST}:${PORT}`);
 });
