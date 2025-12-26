@@ -2,7 +2,7 @@ const service = require("./category.service");
 
 async function list(req, res, next) {
   try {
-    res.json(service.listCategories());
+    res.json(await service.listCategories());
   } catch (e) {
     next(e);
   }
@@ -10,7 +10,7 @@ async function list(req, res, next) {
 
 async function getOne(req, res, next) {
   try {
-    res.json(service.getCategoryById(req.params.id));
+    res.json(await service.getCategoryById(req.params.id));
   } catch (e) {
     next(e);
   }
@@ -18,7 +18,7 @@ async function getOne(req, res, next) {
 
 async function create(req, res, next) {
   try {
-    const created = service.createCategory(req.body);
+    const created = await service.createCategory(req.body);
     res.status(201).json(created);
   } catch (e) {
     next(e);
@@ -27,8 +27,7 @@ async function create(req, res, next) {
 
 async function update(req, res, next) {
   try {
-    const updated = service.updateCategory(req.params.id, req.body);
-    res.json(updated);
+    res.json(await service.updateCategory(req.params.id, req.body));
   } catch (e) {
     next(e);
   }
@@ -36,7 +35,7 @@ async function update(req, res, next) {
 
 async function remove(req, res, next) {
   try {
-    res.json(service.deleteCategory(req.params.id));
+    res.json(await service.deleteCategory(req.params.id));
   } catch (e) {
     next(e);
   }

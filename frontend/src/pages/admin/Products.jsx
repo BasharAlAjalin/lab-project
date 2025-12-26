@@ -1,20 +1,21 @@
 import { useEffect, useState } from "react";
-import {
-  getProducts,
-  createProduct,
-  updateProduct,
-  deleteProduct,
-} from "../../api/product.api";
+import Loader from "../../components/common/Loader";
+import Button from "../../components/UI/Button";
 import { getCategories } from "../../api/category.api";
+import {
+  createProduct,
+  deleteProduct,
+  getProducts,
+  updateProduct,
+} from "../../api/product.api";
 
 export default function AdminProducts() {
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
-
-  const [editingId, setEditingId] = useState(null);
   const [msg, setMsg] = useState("");
 
+  const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState({
     categoryId: "",
     name: "",
@@ -22,23 +23,28 @@ export default function AdminProducts() {
     price: 0,
     stockQuantity: 0,
     imageUrl: "",
-    isActive: true,
   });
+
+  const input =
+    "rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-[#EDBB00]/60";
 
   const load = async () => {
     setLoading(true);
     setMsg("");
     try {
-      const [catsRes, prodRes] = await Promise.all([getCategories(), getProducts()]);
-      setCategories(catsRes.data);
-      setItems(prodRes.data);
+      const [catsRes, prodRes] = await Promise.all([
+        getCategories(),
+        getProducts(),
+      ]);
 
-      // default categoryId for create form
-      if (!form.categoryId && catsRes.data.length) {
+      setCategories(catsRes.data || []);
+      setItems(prodRes.data || []);
+
+      if (!form.categoryId && (catsRes.data || []).length) {
         setForm((f) => ({ ...f, categoryId: catsRes.data[0].id }));
       }
     } catch (e) {
-      setMsg(e?.response?.data?.message || "Failed to load admin products");
+      setMsg(e?.response?.data?.message || "Failed to load products");
     } finally {
       setLoading(false);
     }
@@ -46,7 +52,7 @@ export default function AdminProducts() {
 
   useEffect(() => {
     load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line
   }, []);
 
   const resetForm = () => {
@@ -58,7 +64,6 @@ export default function AdminProducts() {
       price: 0,
       stockQuantity: 0,
       imageUrl: "",
-      isActive: true,
     });
   };
 
@@ -68,9 +73,12 @@ export default function AdminProducts() {
 
     try {
       const payload = {
-        ...form,
+        categoryId: form.categoryId,
+        name: form.name,
+        description: form.description,
         price: Number(form.price),
         stockQuantity: Number(form.stockQuantity),
+        imageUrl: form.imageUrl,
       };
 
       if (editingId) {
@@ -83,23 +91,23 @@ export default function AdminProducts() {
 
       resetForm();
       await load();
-    } catch (e) {
-      setMsg(e?.response?.data?.message || "Operation failed");
+    } catch (e2) {
+      setMsg(e2?.response?.data?.message || "Operation failed");
     }
   };
 
   const onEdit = (p) => {
     setEditingId(p.id);
+
+    // ✅ prefer camelCase (new API), fallback to snake_case (old API)
     setForm({
-      categoryId: p.categoryId,
+      categoryId: p.categoryId ?? p.category_id ?? "",
       name: p.name || "",
       description: p.description || "",
       price: p.price ?? 0,
-      stockQuantity: p.stockQuantity ?? 0,
-      imageUrl: p.imageUrl || "",
-      isActive: p.isActive ?? true,
+      stockQuantity: p.stockQuantity ?? p.stock_quantity ?? 0,
+      imageUrl: p.imageUrl ?? p.image_url ?? "",
     });
-    setMsg("");
   };
 
   const onDelete = async (id) => {
@@ -115,120 +123,129 @@ export default function AdminProducts() {
   };
 
   return (
-    <div style={{ padding: 20, maxWidth: 1100, margin: "0 auto" }}>
-      <h2>Admin Products</h2>
+    <>
+      <h1 className="text-3xl font-extrabold">Products</h1>
+      <p className="mt-1 text-white/70">Create and manage products.</p>
 
-      <form onSubmit={onSubmit} style={{ border: "1px solid #ddd", padding: 16, borderRadius: 10 }}>
-        <h3 style={{ marginTop: 0 }}>{editingId ? "Edit Product" : "Create Product"}</h3>
+      {msg && (
+        <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-sm text-white/85">
+          {msg}
+        </div>
+      )}
 
-        <div style={{ display: "grid", gap: 10 }}>
-          <select
-            value={form.categoryId}
-            onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
-            required
-          >
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <h3 className="text-lg font-extrabold">
+            {editingId ? "Edit Product" : "Create Product"}
+          </h3>
 
-          <input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-          />
+          <form onSubmit={onSubmit} className="mt-4 grid gap-3">
+            <select
+              className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none focus:ring-2 focus:ring-[#EDBB00]/60"
+              value={form.categoryId}
+              onChange={(e) => setForm({ ...form, categoryId: e.target.value })}
+              required
+            >
+              {categories.map((c) => (
+                <option className="text-black" key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
 
-          <textarea
-            placeholder="Description"
-            value={form.description}
-            onChange={(e) => setForm({ ...form, description: e.target.value })}
-            rows={3}
-          />
-
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            placeholder="Price"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
-            required
-          />
-
-          <input
-            type="number"
-            min="0"
-            placeholder="Stock Quantity"
-            value={form.stockQuantity}
-            onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
-          />
-
-          <input
-            placeholder="Image URL (optional)"
-            value={form.imageUrl}
-            onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-          />
-
-          <label style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <input
-              type="checkbox"
-              checked={form.isActive}
-              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+              className={input}
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
             />
-            Active
-          </label>
+            <textarea
+              className={input}
+              rows={3}
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) =>
+                setForm({ ...form, description: e.target.value })
+              }
+            />
 
-          <div style={{ display: "flex", gap: 10 }}>
-            <button type="submit">{editingId ? "Update" : "Create"}</button>
-            {editingId && (
-              <button type="button" onClick={resetForm}>
-                Cancel
-              </button>
-            )}
-          </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <input
+                className={input}
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Price"
+                value={form.price}
+                onChange={(e) => setForm({ ...form, price: e.target.value })}
+                required
+              />
+              <input
+                className={input}
+                type="number"
+                min="0"
+                placeholder="Stock"
+                value={form.stockQuantity}
+                onChange={(e) =>
+                  setForm({ ...form, stockQuantity: e.target.value })
+                }
+              />
+            </div>
+
+            <input
+              className={input}
+              placeholder="Image URL (optional)"
+              value={form.imageUrl}
+              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+            />
+
+            <div className="flex gap-2">
+              <Button>{editingId ? "Update" : "Create"}</Button>
+              {editingId && (
+                <Button type="button" variant="ghost" onClick={resetForm}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          </form>
         </div>
 
-        {msg && <p style={{ marginBottom: 0 }}>{msg}</p>}
-      </form>
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <h3 className="text-lg font-extrabold">List</h3>
 
-      <div style={{ marginTop: 20 }}>
-        <h3>Products List</h3>
-
-        {loading ? (
-          <p>Loading...</p>
-        ) : items.length === 0 ? (
-          <p>No products yet.</p>
-        ) : (
-          <table width="100%" cellPadding="10" style={{ borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "#f5f5f5" }}>
-                <th align="left">Name</th>
-                <th align="left">Price</th>
-                <th align="left">Stock</th>
-                <th align="left">Active</th>
-                <th align="left">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+          {loading ? (
+            <Loader text="Loading products..." />
+          ) : items.length === 0 ? (
+            <p className="mt-3 text-white/70">No products yet.</p>
+          ) : (
+            <div className="mt-4 grid gap-2">
               {items.map((p) => (
-                <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
-                  <td>{p.name}</td>
-                  <td>${Number(p.price).toFixed(2)}</td>
-                  <td>{p.stockQuantity}</td>
-                  <td>{p.isActive ? "Yes" : "No"}</td>
-                  <td style={{ display: "flex", gap: 8 }}>
-                    <button onClick={() => onEdit(p)}>Edit</button>
-                    <button onClick={() => onDelete(p.id)}>Delete</button>
-                  </td>
-                </tr>
+                <div
+                  key={p.id}
+                  className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-white/5 p-4"
+                >
+                  <div>
+                    <div className="font-bold">{p.name}</div>
+                    <div className="text-sm text-white/60">
+                      ${Number(p.price).toFixed(2)} • Stock:{" "}
+                      {p.stockQuantity ?? p.stock_quantity ?? 0}
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" onClick={() => onEdit(p)}>
+                      Edit
+                    </Button>
+                    <Button variant="danger" onClick={() => onDelete(p.id)}>
+                      Delete
+                    </Button>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        )}
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

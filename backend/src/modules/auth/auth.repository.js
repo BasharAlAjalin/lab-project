@@ -1,39 +1,42 @@
+const { query } = require("../../config/db");
 const { randomUUID } = require("crypto");
 
-const users = []; // in-memory
-
-function findByEmail(email) {
-  return users.find(u => u.email.toLowerCase() === email.toLowerCase())  null;
+async function findByEmail(email) {
+  const rows = await query(
+    "SELECT * FROM users WHERE LOWER(email)=LOWER(?) LIMIT 1",
+    [email]
+  );
+  return rows[0] || null;
 }
 
-function findById(id) {
-  return users.find(u => u.id === id)  null;
+async function findById(id) {
+  const rows = await query("SELECT * FROM users WHERE id=? LIMIT 1", [id]);
+  return rows[0] || null;
 }
 
-function create(user) {
-  const now = new Date().toISOString();
-  const newUser = {
-    id: randomUUID(),
-    firstName: user.firstName  "",
-    lastName: user.lastName  "",
-    phone: user.phone  "",
-    email: user.email,
-    passwordHash: user.passwordHash,
-    role: user.role  "CUSTOMER",
-    isVerified: false,
-    createdAt: now,
-    updatedAt: now
-  };
-  users.push(newUser);
-  return newUser;
+async function create(user) {
+  const id = randomUUID();
+  await query(
+    `INSERT INTO users
+      (id, email, password_hash, first_name, last_name, phone_number, role, is_verified)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      user.email,
+      user.passwordHash,
+      user.firstName || null,
+      user.lastName || null,
+      user.phone || null,
+      user.role || "CUSTOMER",
+      user.isVerified ? 1 : 0,
+    ]
+  );
+  return findById(id);
 }
 
-function setVerified(userId) {
-  const u = findById(userId);
-  if (!u) return null;
-  u.isVerified = true;
-  u.updatedAt = new Date().toISOString();
-  return u;
+async function setVerified(userId) {
+  await query("UPDATE users SET is_verified = 1 WHERE id = ?", [userId]);
+  return findById(userId);
 }
 
 module.exports = { findByEmail, findById, create, setVerified };
