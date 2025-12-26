@@ -1,37 +1,15 @@
-function notFound(req, res, next) {
-  const error = new Error(`Not Found - ${req.originalUrl}`);
-  error.statusCode = 404;
-  next(error);
-}
+function errorMiddleware(err, req, res, next) {
+  const status = err?.status || 500;
+  const message = err?.message || "Internal Server Error";
 
-function errorHandler(err, req, res, next) {
-  if (res.headersSent) return next(err);
-
-  const statusCode = err.statusCode || err.status || 500;
-
-  if (err.code === "ER_DUP_ENTRY") {
-    return res.status(409).json({
-      success: false,
-      message: "Duplicate value (already exists).",
-      detail: err.sqlMessage,
-    });
+  // Helpful in development:
+  if (process.env.NODE_ENV !== "test") {
+    console.error(err);
   }
 
-  if (err.code === "ER_NO_REFERENCED_ROW_2") {
-    return res.status(400).json({
-      success: false,
-      message: "Invalid reference (foreign key constraint).",
-      detail: err.sqlMessage,
-    });
-  }
-
-  res.status(statusCode).json({
-    success: false,
-    message: err.message || "Server error",
-    ...(process.env.NODE_ENV !== "production"
-      ? { stack: err.stack, code: err.code }
-      : {}),
+  return res.status(status).json({
+    message,
   });
 }
 
-module.exports = { notFound, errorHandler };
+module.exports = { errorMiddleware };
