@@ -39,4 +39,14 @@ async function setVerified(userId) {
   return findById(userId);
 }
 
-module.exports = { findByEmail, findById, create, setVerified };
+async function _resetForTests() {
+  await query("DELETE FROM users");
+}
+
+module.exports = {
+  findByEmail,
+  findById,
+  create,
+  setVerified,
+  _resetForTests,
+};
