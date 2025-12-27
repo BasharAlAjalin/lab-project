@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  push:
+    branches:
+      ["main", "develop", "EC-40-CI-checks-on-PR-build-frontend-backend"]
+  pull_request:
+    branches: ["main", "develop"]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend - build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Build
+        env:
+          VITE_API_URL: http://localhost:5001/api
+        run: npm run build
+
+  backend:
+    name: Backend - build
+    runs-on: ubuntu-latest
+
+    # ✅ make env available to ALL steps
+    env:
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: "3306"
+      MYSQL_USER: root
+      MYSQL_PASSWORD: root
+      MYSQL_DATABASE: app_db
+      NODE_ENV: test
+      CI: "true"
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: app_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=15
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - run: npm ci
+
+      - name: Wait for MySQL
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
+          until mysql -h 127.0.0.1 -uroot -proot -e "SELECT 1" >/dev/null 2>&1; do
+            echo "Waiting for MySQL..."
+            sleep 2
+          done
+          echo "MySQL is up ✅"
+
+      - name: Debug env (safe)
+        run: |
+          echo "MYSQL_HOST=$MYSQL_HOST"
+          echo "MYSQL_USER=$MYSQL_USER"
+          echo "MYSQL_DATABASE=$MYSQL_DATABASE"
+          echo "MYSQL_PASSWORD length: ${#MYSQL_PASSWORD}"
+
+      - name: Lint (if exists)
+        run: |
+          if npm run | grep -q "lint"; then npm run lint; else echo "No lint script, skipping"; fi
+
+      - name: Test
+        run: npm test
+
+      - name: Build (if exists)
+        run: |
+          if npm run | grep -q "build"; then npm run build; else echo "No build script, skipping"; fi
+
+  docker:
+    name: Docker - build images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: docker build -t ecommerce-backend:ci -f backend/Dockerfile backend
+
+      - name: Build frontend image
+        run: docker build -t ecommerce-frontend:ci -f frontend/Dockerfile frontend

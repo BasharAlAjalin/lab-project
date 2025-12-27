@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: ecommerce-backend
+    environment:
+      NODE_ENV: development
+      PORT: 5001
+
+      JWT_SECRET: super_secret_key_change_me
+      JWT_EXPIRES_IN: 1d
+
+      CLIENT_ORIGIN: http://localhost:8080
+
+      MYSQL_HOST: host.docker.internal
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: "Bisho#1234"
+      MYSQL_DATABASE: app_db
+      MYSQL_TEST_DATABASE: app_db_test
+    ports:
+      - "5001:5001"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: http://localhost:5001/api
+    container_name: ecommerce-frontend
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend

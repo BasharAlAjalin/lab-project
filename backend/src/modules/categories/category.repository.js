@@ -41,4 +41,8 @@ async function remove(id) {
   return res.affectedRows > 0;
 }
 
-module.exports = { findAll, findById, findByName, create, update, remove };
+async function _resetForTests() {
+  await query("DELETE FROM categories");
+}
+
+module.exports = { findAll, findById, create, update, remove, _resetForTests };

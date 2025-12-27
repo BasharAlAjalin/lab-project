@@ -1,0 +1,67 @@
+
+
+SET FOREIGN_KEY_CHECKS = 0;
+
+
+CREATE TABLE IF NOT EXISTS users (
+  id CHAR(36) NOT NULL,
+  email VARCHAR(190) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  first_name VARCHAR(120) NULL,
+  last_name VARCHAR(120) NULL,
+  phone_number VARCHAR(40) NULL,
+  role ENUM('ADMIN','CUSTOMER') NOT NULL DEFAULT 'CUSTOMER',
+  is_verified TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_users_email (email),
+  KEY idx_users_role (role)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE IF NOT EXISTS categories (
+  id CHAR(36) NOT NULL,
+  name VARCHAR(120) NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_categories_name (name)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS products (
+  id CHAR(36) NOT NULL,
+  category_id CHAR(36) NOT NULL,
+  name VARCHAR(160) NOT NULL,
+  description TEXT NULL,
+  price DECIMAL(10,2) NOT NULL,
+  stock_quantity INT NOT NULL DEFAULT 0,
+  image_url VARCHAR(500) NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_products_category (category_id),
+  KEY idx_products_name (name),
+  CONSTRAINT fk_products_category
+    FOREIGN KEY (category_id) REFERENCES categories(id)
+    ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+
+CREATE TABLE IF NOT EXISTS verification_codes (
+  id CHAR(36) NOT NULL,
+  user_id CHAR(36) NOT NULL,
+  channel ENUM('EMAIL','WHATSAPP') NOT NULL,
+  code VARCHAR(20) NOT NULL,
+  expires_at TIMESTAMP NOT NULL,
+  is_used TINYINT(1) NOT NULL DEFAULT 0,
+  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_verification_user (user_id),
+  KEY idx_verification_expires (expires_at),
+  CONSTRAINT fk_verification_user
+    FOREIGN KEY (user_id) REFERENCES users(id)
+    ON DELETE CASCADE ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+SET FOREIGN_KEY_CHECKS = 1;
