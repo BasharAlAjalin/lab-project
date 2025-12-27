@@ -1,20 +1,4 @@
 services:
-  db:
-    image: mysql:8.0
-    container_name: ecommerce-db
-    environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: app_db
-    ports:
-      - "3306:3306"
-    volumes:
-      - db_data:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-proot"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-
   backend:
     build:
       context: ./backend
@@ -26,32 +10,24 @@ services:
       JWT_SECRET: super_secret_key_change_me
       JWT_EXPIRES_IN: 1d
 
-      # If your app uses CLIENT_ORIGIN for CORS, keep it:
       CLIENT_ORIGIN: http://localhost:8080
 
-      MYSQL_HOST: db
+      MYSQL_HOST: host.docker.internal
       MYSQL_PORT: 3306
       MYSQL_USER: root
-      MYSQL_PASSWORD: root
+      MYSQL_PASSWORD: "Bisho#1234"
       MYSQL_DATABASE: app_db
       MYSQL_TEST_DATABASE: app_db_test
     ports:
       - "5001:5001"
-    depends_on:
-      db:
-        condition: service_healthy
 
   frontend:
     build:
       context: ./frontend
       args:
-        # Vite will use this at build time
         VITE_API_URL: http://localhost:5001/api
     container_name: ecommerce-frontend
     ports:
       - "8080:80"
     depends_on:
       - backend
-
-volumes:
-  db_data:
