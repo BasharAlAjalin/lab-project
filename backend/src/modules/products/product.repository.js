@@ -17,6 +17,10 @@ function toProduct(row) {
   };
 }
 
+async function _resetForTests() {
+  await query("DELETE FROM products");
+}
+
 async function findAll({ search, categoryId } = {}) {
   const params = [];
   let sql = `
@@ -112,6 +116,7 @@ async function update(id, patch) {
     `,
     [id]
   );
+
   const old = existing[0];
   if (!old) return null;
 
@@ -144,7 +149,16 @@ async function update(id, patch) {
 
 async function remove(id) {
   const res = await query("DELETE FROM products WHERE id = ?", [id]);
-  return res.affectedRows > 0;
+  return res && typeof res.affectedRows === "number"
+    ? res.affectedRows > 0
+    : false;
 }
 
-module.exports = { findAll, findById, create, update, remove };
+module.exports = {
+  findAll,
+  findById,
+  create,
+  update,
+  remove,
+  _resetForTests,
+};
