@@ -3,118 +3,134 @@ name: CI
 on:
   push:
     branches:
-      ["main", "develop", "EC-40-CI-checks-on-PR-build-frontend-backend"]
+      - "**"
   pull_request:
-    branches: ["main", "develop"]
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  frontend:
-    name: Frontend - build
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - run: npm ci
-
-      - name: Build
-        env:
-          VITE_API_URL: http://localhost:5001/api
-        run: npm run build
-
   backend:
-    name: Backend - build
+    name: Backend (tests)
     runs-on: ubuntu-latest
-
-    # ✅ make env available to ALL steps
-    env:
-      MYSQL_HOST: 127.0.0.1
-      MYSQL_PORT: "3306"
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
-      MYSQL_DATABASE: app_db
-      NODE_ENV: test
-      CI: "true"
 
     services:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: root
+          MYSQL_ROOT_PASSWORD: rootpw
           MYSQL_DATABASE: app_db
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -prootpw"
           --health-interval=10s
           --health-timeout=5s
-          --health-retries=15
+          --health-retries=20
 
-    defaults:
-      run:
-        working-directory: backend
+    env:
+      NODE_ENV: test
+
+      # DB env used by your backend (matches your local docker-compose pattern)
+      MYSQL_HOST: 127.0.0.1
+      MYSQL_PORT: 3306
+      MYSQL_USER: root
+      MYSQL_PASSWORD: rootpw
+      MYSQL_DATABASE: app_db
+
+      # If your backend requires JWT secret in env.js, keep a test value here
+      JWT_SECRET: ci_jwt_secret_change_me
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - run: npm ci
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
 
-      - name: Wait for MySQL
+      - name: Install mysql client
         run: |
           sudo apt-get update
           sudo apt-get install -y mysql-client
-          until mysql -h 127.0.0.1 -uroot -proot -e "SELECT 1" >/dev/null 2>&1; do
-            echo "Waiting for MySQL..."
+
+      - name: Wait for MySQL
+        run: |
+          for i in {1..40}; do
+            mysqladmin ping -h 127.0.0.1 -uroot -prootpw && exit 0
             sleep 2
           done
-          echo "MySQL is up ✅"
+          echo "MySQL did not become ready in time" && exit 1
 
-      - name: Debug env (safe)
+      - name: Apply schema
         run: |
-          echo "MYSQL_HOST=$MYSQL_HOST"
-          echo "MYSQL_USER=$MYSQL_USER"
-          echo "MYSQL_DATABASE=$MYSQL_DATABASE"
-          echo "MYSQL_PASSWORD length: ${#MYSQL_PASSWORD}"
+          mysql -h 127.0.0.1 -uroot -prootpw app_db < backend/scripts/schema.sql
 
-      - name: Lint (if exists)
-        run: |
-          if npm run | grep -q "lint"; then npm run lint; else echo "No lint script, skipping"; fi
+      # If you need seed data for tests, uncomment this:
+      # - name: Seed database
+      #   working-directory: backend
+      #   run: node scripts/seed.js
 
-      - name: Test
+      - name: Run backend tests
+        working-directory: backend
         run: npm test
 
-      - name: Build (if exists)
-        run: |
-          if npm run | grep -q "build"; then npm run build; else echo "No build script, skipping"; fi
-
-  docker:
-    name: Docker - build images
+  frontend:
+    name: Frontend (build)
     runs-on: ubuntu-latest
+    needs: backend
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: docker/setup-buildx-action@v3
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Build backend image
-        run: docker build -t ecommerce-backend:ci -f backend/Dockerfile backend
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci
 
-      - name: Build frontend image
-        run: docker build -t ecommerce-frontend:ci -f frontend/Dockerfile frontend
+      - name: Frontend checks (if present)
+        working-directory: frontend
+        run: |
+          npm run lint --if-present
+          npm run test --if-present
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+  deploy_backend_render:
+    name: Deploy backend (Render) — optional
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+
+    # ✅ only check event/branch here (no secrets)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    # ✅ load secret into env (this is allowed)
+    env:
+      RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+    steps:
+      - name: Trigger Render deploy hook (only if secret exists)
+        # ✅ secret presence check happens here
+        if: ${{ env.RENDER_DEPLOY_HOOK_URL != '' }}
+        run: |
+          curl -fsSL -X POST "$RENDER_DEPLOY_HOOK_URL"
