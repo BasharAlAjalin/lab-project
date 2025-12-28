@@ -42,7 +42,17 @@ async function remove(id) {
 }
 
 async function _resetForTests() {
+  // ⚠️ If products exist, FK RESTRICT will block deleting categories
+  // So ensure tests delete products first OR disable FK checks in tests.
   await query("DELETE FROM categories");
 }
 
-module.exports = { findAll, findById, create, update, remove, _resetForTests };
+module.exports = {
+  findAll,
+  findById,
+  findByName,
+  create,
+  update,
+  remove,
+  _resetForTests,
+};

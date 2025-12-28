@@ -4,21 +4,33 @@ const fs = require("fs");
 const path = require("path");
 const dotenv = require("dotenv");
 
-const envPath = path.join(__dirname, "..", "..", ".env");
+const rootDir = path.join(__dirname, "..", ".."); // backend/
+const envFiles = [
+  process.env.NODE_ENV === "test" ? ".env.test" : null,
+  ".env",
+].filter(Boolean);
 
-if (!process.env.CI && fs.existsSync(envPath)) {
-  dotenv.config({ path: envPath });
-  console.log("ENV LOADED FROM:", envPath);
-} else {
-  console.log("ENV LOADED FROM: process.env (CI or no .env)");
+let loadedFrom = "process.env (CI or no .env)";
+
+for (const file of envFiles) {
+  const fullPath = path.join(rootDir, file);
+
+  // ✅ In CI: do NOT read local files (use GitHub Actions env)
+  // ✅ Locally: always read if file exists
+  if (!process.env.CI && fs.existsSync(fullPath)) {
+    dotenv.config({ path: fullPath });
+    loadedFrom = fullPath;
+    break;
+  }
 }
+
+console.log("ENV LOADED FROM:", loadedFrom);
 
 const env = {
   NODE_ENV: process.env.NODE_ENV || "development",
-
   PORT: Number(process.env.PORT || 5001),
 
-  MYSQL_HOST: process.env.MYSQL_HOST || "localhost",
+  MYSQL_HOST: process.env.MYSQL_HOST || "127.0.0.1",
   MYSQL_PORT: Number(process.env.MYSQL_PORT || 3306),
   MYSQL_USER: process.env.MYSQL_USER || "root",
   MYSQL_PASSWORD: process.env.MYSQL_PASSWORD || "",

@@ -30,26 +30,36 @@ async function getProductById(id) {
   return p;
 }
 
+function normalizeProductPayload(payload = {}) {
+  return {
+    categoryId: payload.categoryId ?? payload.category_id,
+    name: payload.name,
+    description: payload.description,
+    price: payload.price,
+    stockQuantity: payload.stockQuantity ?? payload.stock_quantity,
+    imageUrl: payload.imageUrl ?? payload.image_url,
+  };
+}
+
 async function createProduct(payload) {
-  const { categoryId, name, description, price, stockQuantity, imageUrl } =
-    payload;
+  const p = normalizeProductPayload(payload);
 
-  await _ensureCategoryExists(categoryId);
+  await _ensureCategoryExists(p.categoryId);
 
-  if (!name || !name.trim()) {
+  if (!p.name || !String(p.name).trim()) {
     const err = new Error("name is required");
     err.status = 400;
     throw err;
   }
 
-  const numPrice = Number(price);
+  const numPrice = Number(p.price);
   if (Number.isNaN(numPrice) || numPrice < 0) {
     const err = new Error("price must be a valid non-negative number");
     err.status = 400;
     throw err;
   }
 
-  const stock = stockQuantity === undefined ? 0 : Number(stockQuantity);
+  const stock = p.stockQuantity === undefined ? 0 : Number(p.stockQuantity);
   if (Number.isNaN(stock) || stock < 0) {
     const err = new Error("stockQuantity must be a valid non-negative number");
     err.status = 400;
@@ -57,37 +67,38 @@ async function createProduct(payload) {
   }
 
   return productRepo.create({
-    categoryId,
-    name: name.trim(),
-    description: description || "",
+    categoryId: p.categoryId,
+    name: String(p.name).trim(),
+    description: p.description || "",
     price: numPrice,
     stockQuantity: stock,
-    imageUrl: imageUrl || "",
+    imageUrl: p.imageUrl || "",
   });
 }
 
 async function updateProduct(id, patch) {
-  if (patch.categoryId !== undefined)
-    await _ensureCategoryExists(patch.categoryId);
+  const p = normalizeProductPayload(patch);
 
-  if (patch.name !== undefined && !String(patch.name).trim()) {
+  if (p.categoryId !== undefined) await _ensureCategoryExists(p.categoryId);
+
+  if (p.name !== undefined && !String(p.name).trim()) {
     const err = new Error("name cannot be empty");
     err.status = 400;
     throw err;
   }
 
-  if (patch.price !== undefined) {
-    const numPrice = Number(patch.price);
+  if (p.price !== undefined) {
+    const numPrice = Number(p.price);
     if (Number.isNaN(numPrice) || numPrice < 0) {
       const err = new Error("price must be a valid non-negative number");
       err.status = 400;
       throw err;
     }
-    patch.price = numPrice;
+    p.price = numPrice;
   }
 
-  if (patch.stockQuantity !== undefined) {
-    const stock = Number(patch.stockQuantity);
+  if (p.stockQuantity !== undefined) {
+    const stock = Number(p.stockQuantity);
     if (Number.isNaN(stock) || stock < 0) {
       const err = new Error(
         "stockQuantity must be a valid non-negative number"
@@ -95,10 +106,10 @@ async function updateProduct(id, patch) {
       err.status = 400;
       throw err;
     }
-    patch.stockQuantity = stock;
+    p.stockQuantity = stock;
   }
 
-  const updated = await productRepo.update(id, patch);
+  const updated = await productRepo.update(id, p);
   if (!updated) {
     const err = new Error("Product not found");
     err.status = 404;
