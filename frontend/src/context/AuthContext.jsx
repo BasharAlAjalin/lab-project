@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import {
   clearAuthStorage,
   getToken,
@@ -13,30 +20,33 @@ export function AuthProvider({ children }) {
   const [tokenState, setTokenState] = useState(() => getToken());
   const [userState, setUserState] = useState(() => getUser());
 
-  const login = ({ token, user }) => {
+  const login = useCallback(({ token, user }) => {
     setToken(token);
     setUser(user);
     setTokenState(token);
     setUserState(user);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     clearAuthStorage();
     setTokenState(null);
     setUserState(null);
-  };
+  }, []);
 
-  const updateUser = (partial) => {
-    const next = { ...(userState || {}), ...(partial || {}) };
-    setUser(next);
-    setUserState(next);
-  };
+  const updateUser = useCallback(
+    (partial) => {
+      const next = { ...(userState || {}), ...(partial || {}) };
+      setUser(next);
+      setUserState(next);
+    },
+    [userState]
+  );
 
-  const isAuthenticated = !!tokenState;
-  const isAdmin = userState?.role === "ADMIN";
+  const value = useMemo(() => {
+    const isAuthenticated = !!tokenState;
+    const isAdmin = userState?.role === "ADMIN";
 
-  const value = useMemo(
-    () => ({
+    return {
       token: tokenState,
       user: userState,
       isAuthenticated,
@@ -44,9 +54,8 @@ export function AuthProvider({ children }) {
       login,
       logout,
       updateUser,
-    }),
-    [tokenState, userState, isAuthenticated, isAdmin]
-  );
+    };
+  }, [tokenState, userState, login, logout, updateUser]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
