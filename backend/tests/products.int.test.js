@@ -16,16 +16,18 @@ async function createAdminAndToken() {
     email: "admin2@test.com",
     passwordHash,
     role: "ADMIN",
+    isVerified: true,
   });
 
   return signToken({ sub: admin.id, role: admin.role });
 }
 
 describe("Products API (integration-ish)", () => {
-  beforeEach(() => {
-    productRepo._resetForTests();
-    categoryRepo._resetForTests();
-    authRepo._resetForTests();
+  beforeEach(async () => {
+    // IMPORTANT: delete children first to avoid FK issues
+    await productRepo._resetForTests();
+    await categoryRepo._resetForTests();
+    await authRepo._resetForTests();
   });
 
   test("GET /api/products should be public", async () => {
@@ -58,7 +60,7 @@ describe("Products API (integration-ish)", () => {
   });
 
   test("POST /api/products allows ADMIN when category exists", async () => {
-    const cat = categoryRepo.create({ name: "Electronics", description: "" });
+    const cat = await categoryRepo.create({ name: "Electronics" });
     const adminToken = await createAdminAndToken();
 
     const res = await request(app)
@@ -70,7 +72,6 @@ describe("Products API (integration-ish)", () => {
         description: "Nice phone",
         price: 100,
         stockQuantity: 5,
-        isActive: true,
       });
 
     expect(res.status).toBe(201);
@@ -79,13 +80,14 @@ describe("Products API (integration-ish)", () => {
   });
 
   test("POST /api/products forbids CUSTOMER", async () => {
-    const cat = categoryRepo.create({ name: "Electronics", description: "" });
+    const cat = await categoryRepo.create({ name: "Electronics" });
 
     const passwordHash = await bcrypt.hash("Cust123!", 10);
     const customer = await authRepo.create({
       email: "cust@test.com",
       passwordHash,
       role: "CUSTOMER",
+      isVerified: true,
     });
 
     const customerToken = signToken({ sub: customer.id, role: customer.role });
