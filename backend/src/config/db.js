@@ -3,9 +3,18 @@ const env = require("./env");
 
 let pool;
 
+function shouldUseSSL() {
+  // Enable SSL if explicitly asked OR if it's a TiDB Cloud host.
+  const flag = String(process.env.MYSQL_SSL || "").toLowerCase();
+  if (flag === "true") return true;
+
+  const host = String(env.MYSQL_HOST || "");
+  return host.includes("tidbcloud.com");
+}
+
 function getPool(overrides = {}) {
   if (!pool) {
-    pool = mysql.createPool({
+    const base = {
       host: env.MYSQL_HOST,
       port: env.MYSQL_PORT,
       user: env.MYSQL_USER,
@@ -14,7 +23,19 @@ function getPool(overrides = {}) {
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0,
-      ...overrides,
+    };
+
+    // ✅ TiDB Cloud requires TLS
+    if (shouldUseSSL()) {
+      base.ssl = {
+        // Render has a system CA bundle, so this works.
+        rejectUnauthorized: true,
+      };
+    }
+
+    pool = mysql.createPool({
+      ...base,
+      ...overrides, // let overrides replace anything if needed
     });
   }
   return pool;
